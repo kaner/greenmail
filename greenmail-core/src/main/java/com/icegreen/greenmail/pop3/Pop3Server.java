@@ -24,7 +24,7 @@ public class Pop3Server extends AbstractServer {
 
     @Override
     protected ProtocolHandler createProtocolHandler(final Socket clientSocket) {
-        return new Pop3Handler(new Pop3CommandRegistry(), managers.getUserManager(), clientSocket);
+        return new Pop3Handler(new Pop3CommandRegistry(), managers.getUserManager(), clientSocket, setup);
     }
 
     @Override

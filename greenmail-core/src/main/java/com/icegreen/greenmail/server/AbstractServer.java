@@ -166,6 +166,12 @@ public abstract class AbstractServer extends Thread implements Service {
 
     protected void handleClientSocket(Socket clientSocket) throws SocketException {
         clientSocket.setSoTimeout(clientSocketTimeout);
+        // Disable Nagle: protocols like SMTP/IMAP/POP3 are interactive, so latency
+        // matters more than packet efficiency. Critically, with STARTTLS/STLS the
+        // "+OK"/"220" reply must hit the wire before the TLS handshake begins.
+        // Otherwise Nagle can coalesce it with the first encrypted record and
+        // confuse strict clients (e.g. Angus Mail's POP3 STLS path).
+        clientSocket.setTcpNoDelay(true);
         final ProtocolHandler handler = createProtocolHandler(clientSocket);
         addHandler(handler);
         String threadName = getName() + "<-" + clientSocket.getInetAddress() + ":" + clientSocket.getPort();

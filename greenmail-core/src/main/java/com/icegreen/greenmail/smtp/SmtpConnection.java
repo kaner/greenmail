@@ -10,9 +10,13 @@ import com.icegreen.greenmail.util.EncodingUtil;
 import com.icegreen.greenmail.util.InternetPrintWriter;
 import com.icegreen.greenmail.util.LoggingInputStream;
 import com.icegreen.greenmail.util.LoggingOutputStream;
+import com.icegreen.greenmail.util.ServerSetup;
+import com.icegreen.greenmail.util.StartTlsSocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocket;
 import java.io.*;
 import java.net.InetAddress;
 import java.net.Socket;
@@ -29,6 +33,8 @@ public class SmtpConnection {
     SmtpHandler handler;
     String heloName;
     boolean authenticated; // Was there a successful authentication?
+    boolean tlsActive; // True after a successful STARTTLS upgrade.
+    SSLSocket sslSocket; // Non-null after a successful STARTTLS upgrade; held so the handler can close it first to deliver close_notify.
 
     public SmtpConnection(SmtpHandler handler, Socket sock)
         throws IOException {
@@ -170,5 +176,55 @@ public class SmtpConnection {
      */
     public void setAuthenticated(boolean authenticated) {
         this.authenticated = authenticated;
+    }
+
+    /**
+     * @return the {@link ServerSetup} that configured this connection's server.
+     */
+    public ServerSetup getServerSetup() {
+        return handler.getServerSetup();
+    }
+
+    /**
+     * @return true once {@link #upgradeToTls(SSLSocket)} has completed successfully.
+     */
+    public boolean isTlsActive() {
+        return tlsActive;
+    }
+
+    /**
+     * @return the active SSLSocket if {@link #upgradeToTls(SSLContext)} ran, else {@code null}.
+     */
+    public SSLSocket getSslSocket() {
+        return sslSocket;
+    }
+
+    /**
+     * Layer TLS over the existing plain socket and replace the connection's streams.
+     * Per RFC 3207 the SMTP session must be reset to the state immediately after the
+     * initial connection: HELO/EHLO, AUTH, and any in-progress envelope must be
+     * discarded by the caller.
+     *
+     * @param sslContext initialized SSLContext to use for the handshake.
+     * @throws IOException if the handshake or stream setup fails.
+     */
+    public void upgradeToTls(SSLContext sslContext) throws IOException {
+        SSLSocket newSslSocket = StartTlsSocketFactory.upgrade(sock, sslContext);
+        this.sock = newSslSocket;
+        this.sslSocket = newSslSocket;
+
+        OutputStream o = newSslSocket.getOutputStream();
+        if (log.isDebugEnabled()) {
+            o = new LoggingOutputStream(o, "S: ");
+        }
+        out = InternetPrintWriter.createForEncoding(o, true, EncodingUtil.CHARSET_EIGHT_BIT_ENCODING);
+
+        InputStream is = newSslSocket.getInputStream();
+        if (log.isDebugEnabled()) {
+            is = new LoggingInputStream(is, "C: ");
+        }
+        in = new BufferedInputStream(is);
+
+        tlsActive = true;
     }
 }

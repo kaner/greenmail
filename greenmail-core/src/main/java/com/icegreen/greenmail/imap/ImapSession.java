@@ -11,6 +11,8 @@ import com.icegreen.greenmail.store.MailFolder;
 import com.icegreen.greenmail.user.GreenMailUser;
 import com.icegreen.greenmail.user.UserManager;
 
+import java.io.IOException;
+
 /**
  * Encapsulates all state held for an ongoing Imap session,
  * which commences when a client first establishes a connection to the Imap
@@ -108,4 +110,21 @@ public interface ImapSession {
 
     void unsolicitedResponses(ImapResponse request, boolean omitExpunged) throws FolderException;
 
+    /**
+     * @return true if STARTTLS is offered (server is configured for it and TLS not yet active).
+     */
+    boolean isStartTlsAvailable();
+
+    /**
+     * @return true if STARTTLS has been successfully negotiated for this session.
+     */
+    boolean isTlsActive();
+
+    /**
+     * Negotiate TLS on the underlying connection. Caller must have already
+     * written the tagged OK response and flushed it.
+     *
+     * @throws IOException if the handshake or stream rebuild fails.
+     */
+    void startTls() throws IOException;
 }

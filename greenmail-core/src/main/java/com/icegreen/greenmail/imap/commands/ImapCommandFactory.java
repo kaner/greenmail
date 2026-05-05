@@ -27,9 +27,10 @@ public class ImapCommandFactory {
         imapCommands.put(LogoutCommand.NAME, LogoutCommand.class);
 
         // Commands valid in NON_AUTHENTICATED state.
-        // AUTHENTICATE and LOGIN
+        // AUTHENTICATE, LOGIN, STARTTLS
         imapCommands.put(AuthenticateCommand.NAME, AuthenticateCommand.class);
         imapCommands.put(LoginCommand.NAME, LoginCommand.class);
+        imapCommands.put(StartTLSCommand.NAME, StartTLSCommand.class);
 
         // Commands valid in AUTHENTICATED or SELECTED state.
         // RFC2060: SELECT, EXAMINE, CREATE, DELETE, RENAME, SUBSCRIBE, UNSUBSCRIBE, LIST, LSUB, STATUS, and APPEND

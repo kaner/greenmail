@@ -43,12 +43,14 @@ class CapabilityCommand extends CommandTemplate {
             throws ProtocolException, FolderException {
         parser.endLine(request);
 
-        if( session.getHost().getStore().isQuotaSupported()) {
-            response.untaggedResponse(CAPABILITY_RESPONSE + SP + "QUOTA");
+        StringBuilder caps = new StringBuilder(CAPABILITY_RESPONSE);
+        if (session.getHost().getStore().isQuotaSupported()) {
+            caps.append(SP).append("QUOTA");
         }
-        else {
-            response.untaggedResponse(CAPABILITY_RESPONSE);
+        if (session.isStartTlsAvailable()) {
+            caps.append(SP).append(StartTLSCommand.CAPABILITY);
         }
+        response.untaggedResponse(caps.toString());
         session.unsolicitedResponses(response);
         response.commandComplete(this);
     }

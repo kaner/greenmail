@@ -37,7 +37,9 @@ public class LoggingOutputStream extends FilterOutputStream {
         // write(int) per byte; with TCP_NODELAY that turns one response into
         // N single-byte TCP packets. Override to write the buffer as a whole.
         for (int i = 0; i < len; i++) {
-            loggingBuffer.append(b[off + i]);
+            // Mask to avoid sign-extension: byte values >= 0x80 widen to negative
+            // ints, which LineLoggingBuffer.append drops and prematurely flushes.
+            loggingBuffer.append(b[off + i] & 0xFF);
         }
         out.write(b, off, len);
     }

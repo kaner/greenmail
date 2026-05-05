@@ -11,8 +11,10 @@ import com.icegreen.greenmail.store.MailFolder;
 import com.icegreen.greenmail.store.MessageFlags;
 import com.icegreen.greenmail.user.GreenMailUser;
 import com.icegreen.greenmail.user.UserManager;
+import com.icegreen.greenmail.util.DummySSLServerSocketFactory;
 
 import jakarta.mail.Flags;
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -141,5 +143,21 @@ public final class ImapSessionImpl implements ImapSession {
     @Override
     public ImapSessionState getState() {
         return state;
+    }
+
+    @Override
+    public boolean isStartTlsAvailable() {
+        return handler.getServerSetup().isStartTlsEnabled() && !handler.isTlsActive();
+    }
+
+    @Override
+    public boolean isTlsActive() {
+        return handler.isTlsActive();
+    }
+
+    @Override
+    public void startTls() throws IOException {
+        handler.upgradeToTls(
+            ((DummySSLServerSocketFactory) DummySSLServerSocketFactory.getDefault()).getSSLContext());
     }
 }

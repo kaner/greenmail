@@ -28,6 +28,7 @@ public class Pop3CommandRegistry {
         commands.put("RSET", new RsetCommand());
         commands.put("CAPA", new CapaCommand());
         commands.put("AUTH", new AuthCommand());
+        commands.put("STLS", new StlsCommand());
     }
 
     public Pop3Command getCommand(String name) {

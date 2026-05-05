@@ -25,21 +25,28 @@ public class HeloCommand
     @Override
     public void execute(SmtpConnection conn, SmtpState state,
                         SmtpManager manager, String commandLine) {
+        boolean isExtended = commandLine.toUpperCase().startsWith("EHLO");
         extractHeloName(conn, commandLine);
         state.clearMessage();
+
+        if (!isExtended) {
+            // Plain HELO: single-line greeting, no extensions advertised.
+            conn.send("250 " + conn.getServerGreetingsName());
+            return;
+        }
+
         conn.send("250-" + conn.getServerGreetingsName());
-        conn.send("250 AUTH "+AuthCommand.SUPPORTED_AUTH_MECHANISM);
+        if (conn.getServerSetup().isStartTlsEnabled() && !conn.isTlsActive()) {
+            conn.send("250-STARTTLS");
+        }
+        conn.send("250 AUTH " + AuthCommand.SUPPORTED_AUTH_MECHANISM);
     }
 
     private void extractHeloName(SmtpConnection conn,
                                  String commandLine) {
-        String heloName;
-
-        if (commandLine.length() > 5)
-            heloName = commandLine.substring(5);
-        else
-            heloName = null;
-
+        // Skip the keyword (HELO/EHLO) and following space, if any.
+        int sp = commandLine.indexOf(' ');
+        String heloName = (sp >= 0 && sp + 1 < commandLine.length()) ? commandLine.substring(sp + 1) : null;
         conn.setHeloName(heloName);
     }
 }

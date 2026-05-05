@@ -10,6 +10,7 @@ import com.icegreen.greenmail.server.AbstractSocketProtocolHandler;
 import com.icegreen.greenmail.server.BuildInfo;
 import com.icegreen.greenmail.smtp.commands.SmtpCommand;
 import com.icegreen.greenmail.smtp.commands.SmtpCommandRegistry;
+import com.icegreen.greenmail.util.ServerSetup;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -23,6 +24,7 @@ public class SmtpHandler extends AbstractSocketProtocolHandler {
     // protocol and configuration global stuff
     protected SmtpCommandRegistry registry;
     protected SmtpManager manager;
+    protected final ServerSetup serverSetup;
 
     // session stuff
     protected SmtpConnection conn;
@@ -32,10 +34,30 @@ public class SmtpHandler extends AbstractSocketProtocolHandler {
     protected String currentLine;
 
     public SmtpHandler(SmtpCommandRegistry registry,
-                       SmtpManager manager, Socket socket) {
+                       SmtpManager manager, Socket socket, ServerSetup serverSetup) {
         super(socket);
         this.registry = registry;
         this.manager = manager;
+        this.serverSetup = serverSetup;
+    }
+
+    public ServerSetup getServerSetup() {
+        return serverSetup;
+    }
+
+    @Override
+    public void close() {
+        // After STARTTLS, close the SSL socket first so close_notify reaches the
+        // client; autoClose=true (StartTlsSocketFactory.upgrade) cascade-closes the
+        // underlying plain socket, which super.close() then skips via isClosed().
+        if (conn != null && conn.getSslSocket() != null) {
+            try {
+                conn.getSslSocket().close();
+            } catch (IOException e) {
+                log.trace("Ignoring error closing SSL socket", e);
+            }
+        }
+        super.close();
     }
 
     @Override
@@ -80,12 +102,20 @@ public class SmtpHandler extends AbstractSocketProtocolHandler {
             return;
         }
 
-        // eliminate invalid line lengths before parsing
-        if (!commandLegalSize()) {
+        if (currentLine.length() > LINE_LENGHT_LIMIT) {
+            conn.send("500 Command too long.  " + LINE_LENGHT_LIMIT + " character maximum.");
             return;
         }
 
-        String commandName = currentLine.substring(0, 4).toUpperCase();
+        // Extract command keyword: text up to first space, or the whole line if no space.
+        int sp = currentLine.indexOf(' ');
+        String commandName = (sp < 0 ? currentLine : currentLine.substring(0, sp)).toUpperCase();
+
+        if (commandName.length() < 4) {
+            conn.send("500 Invalid command. Must be at least 4 characters");
+            return;
+        }
+
         SmtpCommand command = registry.getCommand(commandName);
 
         if (command == null) {
@@ -94,25 +124,5 @@ public class SmtpHandler extends AbstractSocketProtocolHandler {
         }
 
         command.execute(conn, state, manager, currentLine);
-    }
-
-    protected boolean commandLegalSize() {
-        if (currentLine.length() < 4) {
-            conn.send("500 Invalid command. Must be 4 characters");
-            return false;
-        }
-
-        if (currentLine.length() > 4 &&
-            currentLine.charAt(4) != ' ') {
-            conn.send("500 Invalid command. Must be 4 characters");
-            return false;
-        }
-
-        if (currentLine.length() > LINE_LENGHT_LIMIT) {
-            conn.send("500 Command too long.  " + LINE_LENGHT_LIMIT + " character maximum.");
-            return false;
-        }
-
-        return true;
     }
 }

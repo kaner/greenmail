@@ -23,7 +23,7 @@ public final class ImapServer extends AbstractServer {
 
     @Override
     protected ProtocolHandler createProtocolHandler(Socket clientSocket) {
-        return new ImapHandler(managers.getUserManager(), managers.getImapHostManager(), clientSocket);
+        return new ImapHandler(managers.getUserManager(), managers.getImapHostManager(), clientSocket, setup);
     }
 
     @Override

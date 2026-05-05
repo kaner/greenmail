@@ -21,6 +21,6 @@ public class SmtpServer extends AbstractServer {
 
     @Override
     protected ProtocolHandler createProtocolHandler(final Socket clientSocket) {
-        return new SmtpHandler(new SmtpCommandRegistry(), managers.getSmtpManager(), clientSocket);
+        return new SmtpHandler(new SmtpCommandRegistry(), managers.getSmtpManager(), clientSocket, setup);
     }
 }

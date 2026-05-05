@@ -49,6 +49,7 @@ public class DummySSLServerSocketFactory extends SSLServerSocketFactory {
     public static final String GREENMAIL_KEYSTORE_P12 = "greenmail.p12";
     public static final String GREENMAIL_KEYSTORE_JKS = "greenmail.jks";
     private final SSLServerSocketFactory factory;
+    private final SSLContext sslContext;
     private final KeyStore ks;
 
     // From https://docs.oracle.com/javase/8/docs/technotes/guides/security/SunProviders.html#SupportedCipherSuites
@@ -70,7 +71,7 @@ public class DummySSLServerSocketFactory extends SSLServerSocketFactory {
 
     public DummySSLServerSocketFactory() {
         try {
-            SSLContext sslcontext = SSLContext.getInstance("TLS");
+            sslContext = SSLContext.getInstance("TLS");
             String defaultAlg = KeyManagerFactory.getDefaultAlgorithm();
             KeyManagerFactory km = KeyManagerFactory.getInstance(defaultAlg);
             ks = KeyStore.getInstance(KeyStore.getDefaultType());
@@ -83,8 +84,8 @@ public class DummySSLServerSocketFactory extends SSLServerSocketFactory {
             km.init(ks, keyPass);
 
             KeyManager[] kma = km.getKeyManagers();
-            sslcontext.init(kma, new TrustManager[]{new DummyTrustManager()}, null);
-            factory = sslcontext.getServerSocketFactory();
+            sslContext.init(kma, new TrustManager[]{new DummyTrustManager()}, null);
+            factory = sslContext.getServerSocketFactory();
         } catch (Exception e) {
             throw new IllegalStateException("Can not create and initialize SSL", e);
         }
@@ -181,5 +182,16 @@ public class DummySSLServerSocketFactory extends SSLServerSocketFactory {
 
     public KeyStore getKeyStore() {
         return ks;
+    }
+
+    /**
+     * Exposes the configured {@link SSLContext} so that STARTTLS upgrade paths can
+     * obtain a server-mode {@link javax.net.ssl.SSLSocketFactory} backed by the same
+     * keystore and trust manager used by the implicit-TLS server sockets.
+     *
+     * @return the initialized SSLContext.
+     */
+    public SSLContext getSSLContext() {
+        return sslContext;
     }
 }

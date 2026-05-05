@@ -23,6 +23,7 @@ public class SmtpCommandRegistry {
         commands.put("RCPT", new RcptCommand());
         commands.put("DATA", new DataCommand());
         commands.put("VRFY", new VrfyCommand());
+        commands.put("STARTTLS", new StartTlsCommand());
     }
 
     public SmtpCommand getCommand(String name) {

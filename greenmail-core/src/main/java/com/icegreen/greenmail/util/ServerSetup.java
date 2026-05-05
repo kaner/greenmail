@@ -81,6 +81,7 @@ public class ServerSetup {
     private long connectionTimeout = -1L;
     private long writeTimeout = -1L;
     private boolean verbose = false;
+    private boolean startTls = false;
 
     /**
      * Timeout when GreenMail starts a server, in milliseconds.
@@ -211,6 +212,32 @@ public class ServerSetup {
     }
 
     /**
+     * @return true if STARTTLS (or POP3 STLS) support is advertised and accepted on this plain server.
+     */
+    public boolean isStartTlsEnabled() {
+        return startTls;
+    }
+
+    /**
+     * Creates a deep copy with STARTTLS support enabled.
+     * <p>
+     * Only valid for plain protocols (smtp, imap, pop3). Implicit-TLS protocols
+     * (smtps, imaps, pop3s) already use TLS from the start, so STARTTLS is rejected.
+     *
+     * @return a deep copy with STARTTLS enabled.
+     * @throws IllegalStateException if called on a secure (implicit-TLS) protocol.
+     */
+    public ServerSetup withStartTLS() {
+        if (isSecure()) {
+            throw new IllegalStateException(
+                "STARTTLS cannot be combined with implicit-TLS protocol '" + protocol + "'");
+        }
+        ServerSetup copy = createCopy();
+        copy.startTls = true;
+        return copy;
+    }
+
+    /**
      * @param verbose if true enables JavaMail debug output by setting JavaMail property 'mail.debug'
      */
     public ServerSetup setVerbose(boolean verbose) {
@@ -287,6 +314,12 @@ public class ServerSetup {
             props.setProperty(MAIL_DOT + getProtocol() + ".socketFactory.fallback", "false");
             // Required for Angus Mail, see: https://github.com/eclipse-ee4j/angus-mail/issues/12
             props.setProperty(MAIL_DOT + getProtocol() + ".ssl.checkserveridentity", "false");
+        } else if (isStartTlsEnabled()) {
+            // Negotiate TLS on the plain port via STARTTLS / STLS.
+            props.setProperty(MAIL_DOT + getProtocol() + ".starttls.enable", Boolean.TRUE.toString());
+            props.setProperty(MAIL_DOT + getProtocol() + ".starttls.required", Boolean.TRUE.toString());
+            props.setProperty(MAIL_DOT + getProtocol() + ".ssl.socketFactory.class", DummySSLSocketFactory.class.getName());
+            props.setProperty(MAIL_DOT + getProtocol() + ".ssl.checkserveridentity", "false");
         }
 
         // Timeouts
@@ -332,6 +365,7 @@ public class ServerSetup {
             connectionTimeout == that.connectionTimeout &&
             writeTimeout == that.writeTimeout &&
             verbose == that.verbose &&
+            startTls == that.startTls &&
             serverStartupTimeout == that.serverStartupTimeout &&
             bindAddress.equals(that.bindAddress) &&
             protocol.equals(that.protocol) &&
@@ -340,7 +374,7 @@ public class ServerSetup {
 
     @Override
     public int hashCode() {
-        return Objects.hash(port, bindAddress, protocol, readTimeout, connectionTimeout, writeTimeout, verbose, serverStartupTimeout, mailSessionProperties);
+        return Objects.hash(port, bindAddress, protocol, readTimeout, connectionTimeout, writeTimeout, verbose, startTls, serverStartupTimeout, mailSessionProperties);
     }
 
     @Override
@@ -353,6 +387,7 @@ public class ServerSetup {
             ", connectionTimeout=" + connectionTimeout +
             ", writeTimeout=" + writeTimeout +
             ", verbose=" + verbose +
+            ", startTls=" + startTls +
             ", serverStartupTimeout=" + serverStartupTimeout +
             ", mailProperties=" + mailSessionProperties +
             '}';
@@ -393,6 +428,7 @@ public class ServerSetup {
         setup.setReadTimeout(getReadTimeout());
         setup.setWriteTimeout(getWriteTimeout());
         setup.setVerbose(isVerbose());
+        setup.startTls = startTls;
         setup.mailSessionProperties.putAll(mailSessionProperties);
 
         return setup;

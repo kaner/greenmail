@@ -11,6 +11,7 @@ import com.icegreen.greenmail.pop3.commands.Pop3CommandRegistry;
 import com.icegreen.greenmail.server.AbstractSocketProtocolHandler;
 import com.icegreen.greenmail.server.BuildInfo;
 import com.icegreen.greenmail.user.UserManager;
+import com.icegreen.greenmail.util.ServerSetup;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -24,12 +25,33 @@ public class Pop3Handler extends AbstractSocketProtocolHandler {
     final UserManager manager;
     Pop3State state;
     String currentLine;
+    private final ServerSetup serverSetup;
 
     public Pop3Handler(Pop3CommandRegistry registry,
-                       UserManager manager, Socket socket) {
+                       UserManager manager, Socket socket, ServerSetup serverSetup) {
         super(socket);
         this.registry = registry;
         this.manager = manager;
+        this.serverSetup = serverSetup;
+    }
+
+    public ServerSetup getServerSetup() {
+        return serverSetup;
+    }
+
+    @Override
+    public void close() {
+        // After STLS, close the SSL socket first so close_notify reaches the client;
+        // autoClose=true (StartTlsSocketFactory.upgrade) cascade-closes the underlying
+        // plain socket, which super.close() then skips via its isClosed() guard.
+        if (conn != null && conn.getSslSocket() != null) {
+            try {
+                conn.getSslSocket().close();
+            } catch (IOException e) {
+                log.trace("Ignoring error closing SSL socket", e);
+            }
+        }
+        super.close();
     }
 
     @Override

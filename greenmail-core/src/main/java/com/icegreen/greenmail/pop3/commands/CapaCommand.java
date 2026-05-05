@@ -34,10 +34,12 @@ public class CapaCommand extends Pop3Command {
 
     @Override
     public void execute(Pop3Connection conn, Pop3State state, String cmd) {
-        // We don't support any additional capabilities
         conn.println("+OK");
         conn.println("UIDL");
-        conn.println("SASL "+ AuthCommand.Pop3SaslAuthMechanism.list());
+        conn.println("SASL " + AuthCommand.Pop3SaslAuthMechanism.list());
+        if (conn.getServerSetup().isStartTlsEnabled() && !conn.isTlsActive()) {
+            conn.println("STLS");
+        }
         conn.println(".");
     }
 }
