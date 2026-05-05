@@ -31,6 +31,16 @@ public class LoggingOutputStream extends FilterOutputStream {
         super.write(b);
     }
 
+    @Override
+    public synchronized void write(byte[] b, int off, int len) throws IOException {
+        // FilterOutputStream's default write(byte[],off,len) loops calling
+        // write(int) per byte; with TCP_NODELAY that turns one response into
+        // N single-byte TCP packets. Override to write the buffer as a whole.
+        for (int i = 0; i < len; i++) {
+            loggingBuffer.append(b[off + i]);
+        }
+        out.write(b, off, len);
+    }
 
     @Override
     public synchronized void flush() throws IOException {
